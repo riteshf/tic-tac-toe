@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, View, Text, TouchableOpacity, Alert } from "react-native";
 
 type Board = any[];
 
@@ -33,12 +33,14 @@ const TicTacToe = () => {
       const [a, b, c] = pattern;
       if (board[a] && board[a] === board[b] && board[a] === board[c]) {
         setWinner(board[a]);
+        Alert.alert("Game Over", `Winner: ${board[a]}`);
         return;
       }
     }
 
     if (!board.includes(null)) {
       setWinner("Draw");
+      Alert.alert("Game Over", "It's a Draw!");
     }
   };
 
@@ -49,7 +51,12 @@ const TicTacToe = () => {
   };
 
   const renderSquare = (index: number) => (
-    <TouchableOpacity style={styles.square} onPress={() => handlePress(index)}>
+    <TouchableOpacity
+      style={styles.square}
+      onPress={() => handlePress(index)}
+      accessibilityLabel={`Square ${index + 1}`}
+      accessibilityRole="button"
+    >
       <Text style={styles.text}>{board[index]}</Text>
     </TouchableOpacity>
   );
@@ -84,16 +91,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f5f5f5",
+    padding: 20,
   },
   title: {
     fontSize: 32,
     fontWeight: "bold",
     marginBottom: 20,
+    color: "#333",
   },
   board: {
     width: 300,
     height: 300,
     justifyContent: "center",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   row: {
     flexDirection: "row",
@@ -105,10 +121,12 @@ const styles = StyleSheet.create({
     borderColor: "#000",
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#e0e0e0",
   },
   text: {
     fontSize: 32,
     fontWeight: "bold",
+    color: "#333",
   },
   winnerText: {
     fontSize: 24,
@@ -126,6 +144,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+    width: 200,
+    textAlign: "center",
+    padding: 5,
   },
 });
 
