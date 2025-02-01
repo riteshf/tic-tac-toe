@@ -1,24 +1,107 @@
 import React, { useState } from "react";
-import { StyleSheet, View, Text, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+} from "react-native";
 
-type Board = any[];
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const TicTacToe = () => {
-  const [board, setBoard] = useState(Array(9).fill(null));
-  const [isXNext, setIsXNext] = useState(true);
-  const [winner, setWinner] = useState<string | null>(null);
+type Player = "X" | "O" | null;
 
-  const handlePress = (index: number) => {
-    if (board[index] || winner) return; // If already filled or winner exists
-    const newBoard = [...board];
-    newBoard[index] = isXNext ? "X" : "O";
-    setBoard(newBoard);
-    setIsXNext(!isXNext);
-    checkWinner(newBoard);
+type BoardState = Player[];
+
+const getLineStyle = (combination: number[]) => {
+  const lines = {
+    horizontal: [
+      { top: 50, left: 0, width: 300, height: 6 },
+      { top: 150, left: 0, width: 300, height: 6 },
+      { top: 250, left: 0, width: 300, height: 6 },
+    ],
+    vertical: [
+      { top: 0, left: 50, width: 6, height: 300 },
+      { top: 0, left: 150, width: 6, height: 300 },
+      { top: 0, left: 250, width: 6, height: 300 },
+    ],
+    diagonal: [
+      {
+        top: 150,
+        left: -61,
+        width: 424,
+        height: 6,
+        transform: [{ rotate: "45deg" }],
+      },
+      {
+        top: 150,
+        left: -61,
+        width: 424,
+        height: 6,
+        transform: [{ rotate: "-45deg" }],
+      },
+    ],
   };
 
-  const checkWinner = (board: Board) => {
-    const winPatterns = [
+  if (combination[0] === 0 && combination[1] === 1 && combination[2] === 2) {
+    return lines.horizontal[0];
+  } else if (
+    combination[0] === 3 &&
+    combination[1] === 4 &&
+    combination[2] === 5
+  ) {
+    return lines.horizontal[1];
+  } else if (
+    combination[0] === 6 &&
+    combination[1] === 7 &&
+    combination[2] === 8
+  ) {
+    return lines.horizontal[2];
+  } else if (
+    combination[0] === 0 &&
+    combination[1] === 3 &&
+    combination[2] === 6
+  ) {
+    return lines.vertical[0];
+  } else if (
+    combination[0] === 1 &&
+    combination[1] === 4 &&
+    combination[2] === 7
+  ) {
+    return lines.vertical[1];
+  } else if (
+    combination[0] === 2 &&
+    combination[1] === 5 &&
+    combination[2] === 8
+  ) {
+    return lines.vertical[2];
+  } else if (
+    combination[0] === 0 &&
+    combination[1] === 4 &&
+    combination[2] === 8
+  ) {
+    return lines.diagonal[0];
+  } else if (
+    combination[0] === 2 &&
+    combination[1] === 4 &&
+    combination[2] === 6
+  ) {
+    return lines.diagonal[1];
+  }
+  return {};
+};
+
+const TicTacToe: React.FC = () => {
+  const [board, setBoard] = useState<BoardState>(Array(9).fill(null));
+  const [isXTurn, setIsXTurn] = useState(true);
+  const [winner, setWinner] = useState<Player | "Draw" | null>(null);
+  const [winningCombination, setWinningCombination] = useState<number[] | null>(
+    null
+  );
+  const scaleAnim = new Animated.Value(1);
+
+  const checkWinner = (newBoard: BoardState): Player | "Draw" | null => {
+    const winningCombinations = [
       [0, 1, 2],
       [3, 4, 5],
       [6, 7, 8],
@@ -29,124 +112,166 @@ const TicTacToe = () => {
       [2, 4, 6],
     ];
 
-    for (let pattern of winPatterns) {
-      const [a, b, c] = pattern;
-      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-        setWinner(board[a]);
-        Alert.alert("Game Over", `Winner: ${board[a]}`);
-        return;
+    for (let combo of winningCombinations) {
+      const [a, b, c] = combo;
+      if (
+        newBoard[a] &&
+        newBoard[a] === newBoard[b] &&
+        newBoard[a] === newBoard[c]
+      ) {
+        setWinningCombination(combo);
+        return newBoard[a];
       }
     }
+    return newBoard.includes(null) ? null : "Draw";
+  };
 
-    if (!board.includes(null)) {
-      setWinner("Draw");
-      Alert.alert("Game Over", "It's a Draw!");
-    }
+  const handlePress = (index: number) => {
+    if (board[index] || winner) return;
+
+    const newBoard = [...board];
+    newBoard[index] = isXTurn ? "X" : "O";
+    setBoard(newBoard);
+    setIsXTurn(!isXTurn);
+    setWinner(checkWinner(newBoard));
+
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.2,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   const resetGame = () => {
     setBoard(Array(9).fill(null));
-    setIsXNext(true);
+    setIsXTurn(true);
     setWinner(null);
+    setWinningCombination(null);
   };
 
-  const renderSquare = (index: number) => (
+  const renderCell = (index: number) => (
     <TouchableOpacity
-      style={styles.square}
+      key={index}
+      style={styles.cell}
       onPress={() => handlePress(index)}
-      accessibilityLabel={`Square ${index + 1}`}
-      accessibilityRole="button"
     >
-      <Text style={styles.text}>{board[index]}</Text>
+      <View style={styles.cellBorder}>
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+          {board[index] && (
+            <Text
+              style={[
+                styles.cellText,
+                { color: board[index] === "X" ? "#3c4043" : "#fff" },
+              ]}
+            >
+              {board[index]}
+            </Text>
+          )}
+        </Animated.View>
+      </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Tic Tac Toe</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.status}>
+        {winner
+          ? winner === "Draw"
+            ? "It's a Draw!"
+            : `${winner} Wins!`
+          : `Turn: ${isXTurn ? "X" : "O"}`}
+      </Text>
       <View style={styles.board}>
-        {[0, 1, 2].map((row) => (
-          <View style={styles.row} key={row}>
-            {renderSquare(row * 3)}
-            {renderSquare(row * 3 + 1)}
-            {renderSquare(row * 3 + 2)}
+        {board.map((_, index) => renderCell(index))}
+        {winningCombination && (
+          <View style={styles.lineContainer}>
+            <Animated.View
+              style={[styles.line, getLineStyle(winningCombination), {
+                backgroundColor: winner === 'X' ? '#3c4043' : '#fff',
+              }]}
+            />
           </View>
-        ))}
+        )}
       </View>
-      {winner && (
-        <Text style={styles.winnerText}>
-          {winner === "Draw" ? "It's a Draw!" : `Winner: ${winner}`}
-        </Text>
-      )}
       <TouchableOpacity style={styles.resetButton} onPress={resetGame}>
         <Text style={styles.resetText}>Reset Game</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#0ca192",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    padding: 20,
   },
-  title: {
-    fontSize: 32,
+  status: {
+    fontSize: 26,
     fontWeight: "bold",
-    marginBottom: 20,
     color: "#333",
+    marginBottom: 20,
   },
   board: {
     width: 300,
     height: 300,
-    justifyContent: "center",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  row: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    position: "relative",
   },
-  square: {
+  cell: {
     width: 100,
     height: 100,
-    borderWidth: 1,
-    borderColor: "#000",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#e0e0e0",
   },
-  text: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#333",
+  cellBorder: {
+    width: '100%',
+    height: '100%',
+    borderWidth: 4,
+    borderColor: "teal",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  winnerText: {
-    fontSize: 24,
+  cellText: {
+    fontSize: 48,
     fontWeight: "bold",
-    color: "green",
-    marginTop: 20,
   },
   resetButton: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: "#6200ee",
-    borderRadius: 5,
+    marginTop: 30,
+    width: 250,
+    justifyContent: "center",
+    textAlign: "center",
+    padding: 16,
+    backgroundColor: "#3c4043",
+    borderRadius: 10,
   },
   resetText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "bold",
-    width: 200,
-    textAlign: "center",
-    padding: 5,
+    margin: "auto",
+  },
+  lineContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 300,
+    height: 300,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  line: {
+    position: "absolute",
+    backgroundColor: "#3c4043",
   },
 });
 
